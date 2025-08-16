@@ -1,0 +1,16 @@
+{
+  "name": "twitch-chat-overlay-local",
+  "version": "1.0.0",
+  "description": "Locally hosted Twitch chat overlay for streamers",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "get-system-fonts": "^2.0.2",
+    "socket.io": "^4.5.0",
+    "tmi.js": "^1.8.5",
+    "yargs": "^17.7.2"
+  }
+}

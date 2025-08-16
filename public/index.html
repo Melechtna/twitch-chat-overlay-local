@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Twitch Chat Overlay</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="chat-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const chatContainer = document.getElementById('chat-container');
+    let viewportHeight = 600;
+    let messageSeconds = 10;
+    let messageFont = 'Arial';
+    let namefont = 'Arial';
+
+    // Receive settings from server
+    socket.on('settings', ({ viewportHeight: height, messageSeconds: seconds, messageFont: mFont, namefont: uFont }) => {
+      viewportHeight = height;
+      messageSeconds = seconds;
+      messageFont = mFont;
+      namefont = uFont;
+      console.log(`Settings received: height=${height}px, seconds=${seconds}, messageFont=${mFont}, namefont=${uFont}`);
+      
+      // Inject font-face for custom fonts
+      const style = document.createElement('style');
+      style.textContent = `
+        @font-face {
+          font-family: "${mFont}";
+          src: url("/fonts/${mFont}.otf") format("opentype"),
+               url("/fonts/${mFont}.ttf") format("truetype"),
+               url("/fonts/${mFont}.woff") format("woff"),
+               url("/fonts/${mFont}.woff2") format("woff2");
+        }
+        @font-face {
+          font-family: "${uFont}";
+          src: url("/fonts/${uFont}.otf") format("opentype"),
+               url("/fonts/${uFont}.ttf") format("truetype"),
+               url("/fonts/${uFont}.woff") format("woff"),
+               url("/fonts/${uFont}.woff2") format("woff2");
+        }
+        .chat-message { font-family: "${mFont}", Arial, sans-serif !important; }
+        .username { font-family: "${uFont}", Arial, sans-serif !important; }
+      `;
+      document.head.appendChild(style);
+      console.log(`Applied font styles: messageFont="${mFont}", namefont="${uFont}"`);
+      
+      // Test font loading
+      const testFont = new FontFace(mFont, `url(/fonts/${mFont}.otf)`);
+      testFont.load().then(() => {
+        console.log(`Message font "${mFont}" loaded successfully`);
+      }).catch(err => {
+        console.error(`Failed to load message font "${mFont}": ${err.message}`);
+      });
+      const testUsernameFont = new FontFace(uFont, `url(/fonts/${uFont}.otf)`);
+      testUsernameFont.load().then(() => {
+        console.log(`Username font "${uFont}" loaded successfully`);
+      }).catch(err => {
+        console.error(`Failed to load username font "${uFont}": ${err.message}`);
+      });
+
+      chatContainer.style.height = `${height}px`;
+    });
+
+    socket.on('chatMessage', ({ username, message, color, emotes }) => {
+      // Create new message
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-message';
+      let formattedMessage = message;
+      
+      // Sort emotes by start position (descending)
+      emotes.sort((a, b) => b.start - a.start);
+      for (const emote of emotes) {
+        const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/3.0`;
+        const emoteText = message.slice(emote.start, emote.end + 1);
+        formattedMessage = formattedMessage.slice(0, emote.start) +
+          `<img src="${emoteUrl}" class="emote" alt="${emoteText}">` +
+          formattedMessage.slice(emote.end + 1);
+      }
+      
+      msgDiv.innerHTML = `<span class="username" style="color:${color}">${username}</span>: ${formattedMessage}`;
+      console.log(`New message created: ${username}: ${message}`);
+      
+      // Check for overflow before appending
+      let totalHeight = 0;
+      const messages = chatContainer.querySelectorAll('.chat-message');
+      messages.forEach(msg => {
+        totalHeight += msg.offsetHeight + parseInt(getComputedStyle(msg).marginBottom);
+      });
+      const newMessageHeight = msgDiv.offsetHeight + parseInt(getComputedStyle(msgDiv).marginBottom);
+      
+      // Remove oldest message immediately if new message would cause downward overflow
+      if (totalHeight + newMessageHeight > viewportHeight && messages.length > 1) {
+        messages[0].remove();
+        console.log('Removed oldest message due to overflow');
+        // Slide up remaining messages
+        const remainingMessages = chatContainer.querySelectorAll('.chat-message');
+        remainingMessages.forEach(msg => {
+          msg.style.transform = 'translateY(0)';
+          msg.style.transition = 'transform 0.3s ease';
+        });
+      }
+      
+      // Append new message
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      console.log(`Appended message: ${username}: ${message}`);
+      
+      // Remove message after specified seconds
+      setTimeout(() => {
+        if (msgDiv.parentNode) {
+          console.log(`Removing message after ${messageSeconds}s: ${username}: ${message}`);
+          msgDiv.remove();
+          // Slide up remaining messages
+          const remainingMessages = chatContainer.querySelectorAll('.chat-message');
+          remainingMessages.forEach(msg => {
+            msg.style.transform = 'translateY(0)';
+            msg.style.transition = 'transform 0.3s ease';
+          });
+        } else {
+          console.log(`Message already removed: ${username}: ${message}`);
+        }
+      }, messageSeconds * 1000); // Remove after specified seconds
+    });
+  </script>
+</body>
+</html>
