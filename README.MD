@@ -4,7 +4,7 @@ A lightweight Node.js application to display Twitch chat messages as an overlay 
 
 ## Features
 - **Real-Time Twitch Chat**: Connects to a specified Twitch channel (e.g., `melechtna_antelecht`) and displays messages in real time.
-- **Custom Fonts**: Supports custom fonts for usernames and messages, loaded from a local `fonts/` folder (e.g., `Bagnard.otf`) or system fonts like Arial.
+- **Custom Fonts**: Supports custom fonts for usernames and messages, loaded from a local `fonts/` folder (e.g., `Font.otf`) or system fonts like Arial.
 - **Squircle Styling**: Messages appear in semi-transparent, rounded rectangles (squircles) for a modern look.
 - **Configurable Display**:
   - Set viewport height to match your OBS or other softwares browser source.
@@ -67,8 +67,8 @@ node index.js -u <twitch-username> -v <height> -p <port> -f <message-font> -n <u
 | `--username` | `-u` | Twitch channel username (e.g., `melechtna_antelecht`) | String | None | Yes |
 | `--height` | `-v` | Viewport height in pixels (Browser Source overlay height) | Number | None | Yes |
 | `--seconds` | `-s` | Seconds each message stays visible | Number | 10 | No |
-| `--font` | `-f` | Font for message text (e.g., `Bagnard`, `Arial`) | String | Arial | No |
-| `--namefont` | `-n` | Font for usernames (e.g., `Bagnard`, `Arial`) | String | Arial | No |
+| `--font` | `-f` | Font for message text (e.g., `Font`, `Arial`) | String | Arial | No |
+| `--namefont` | `-n` | Font for usernames (e.g., `Font`, `Arial`) | String | Arial | No |
 | `--help` | `-h` | Show help | Boolean | - | No |
 
 ### Example
@@ -81,7 +81,7 @@ Example output:
 ```
 Available fonts: font, font2
 Validating font: font, namefont: font2
-Server settings: port=3006, channel=melechtna_antelecht, height=400, seconds=30, messageFont=Bagnard, namefont=Bagnard
+Server settings: port=3006, channel=melechtna_antelecht, height=400, seconds=30, messageFont=font, namefont=font2
 Chat overlay at http://localhost:3006
 ```
 
