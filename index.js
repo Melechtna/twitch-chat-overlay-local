@@ -1,20 +1,22 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const tmi = require('tmi.js');
-const yargs = require('yargs');
+const express   = require('express');
+const http      = require('http');
+const socketIo  = require('socket.io');
+const tmi       = require('tmi.js');
+const yargs     = require('yargs');
 const getSystemFonts = require('get-system-fonts');
-const path = require('path');
-const fs = require('fs');
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+const path      = require('path');
+const fs        = require('fs');
 
-// Use the directory of the executable for fonts/
+const app    = express();
+const server = http.createServer(app);
+const io     = socketIo(server);
+
+
+// UI (HTML/CSS/JS) is bundled inside the binary → use __dirname
 const publicDir = path.join(__dirname, 'public');
+
 const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
 
-// Set Content-Security-Policy to allow inline scripts/styles and local resources
 app.use((req, res, next) => {
   const csp = [
     "default-src 'self'",
@@ -24,11 +26,11 @@ app.use((req, res, next) => {
     "img-src 'self' https://static-cdn.jtvnw.net https://cdn.jtvnw.net",
     "connect-src 'self' ws:"
   ].join('; ');
-  res.setHeader('Content‑Security‑Policy', csp);
+  res.setHeader('Content-Security-Policy', csp);
   next();
 });
 
-// Parse command-line arguments
+
 const argv = yargs
 .option('port', {
   alias: 'p',
@@ -68,6 +70,7 @@ const argv = yargs
 })
 .check((argv) => {
   const errors = [];
+
   if (argv.port < 1 || argv.port > 65535) {
     errors.push('Port must be between 1 and 65535');
   }
@@ -81,30 +84,36 @@ const argv = yargs
     errors.push('Seconds must be a positive number');
   }
 
-  // Font validation (log warnings, don't throw)
+
   const validateFont = (font, type) => {
-    if (font === 'Arial') return true;
+    if (font.toLowerCase() === 'arial') return true;
+
     console.log(`Checking fonts directory: ${fontsDir}`);
-    if (fs.existsSync(fontsDir)) {
-      const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
-      const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)));
-      console.log(`Available fonts in fonts/: ${fontNames.join(', ')}`);
-      if (!fontNames.some(name => name.toLowerCase() === font.toLowerCase())) {
-        console.error(`${type} "${font}" not found in fonts/ folder. Falling back to Arial. Available fonts: ${fontNames.join(', ') || 'none'}`);
-        return false;
-      }
-      return true;
-    } else {
-      console.error(`${type} "${font}" not found and fonts/ directory does not exist at ${fontsDir}. Falling back to Arial.`);
+
+    if (!fs.existsSync(fontsDir)) {
+      console.error(`${type} "${font}" not found – fonts/ folder does not exist at ${fontsDir}. Falling back to Arial.`);
       return false;
     }
+
+    const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
+    const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)));
+
+    console.log(`Available fonts in fonts/: ${fontNames.join(', ')}`);
+
+    const found = fontNames.some(name => name.toLowerCase() === font.toLowerCase());
+
+    if (!found) {
+      console.error(`${type} "${font}" not found in fonts/ folder. Falling back to Arial. Available fonts: ${fontNames.join(', ') || 'none'}`);
+      return false;
+    }
+    return true;
   };
 
-  const fontValid = validateFont(argv.font, 'Font');
+  const fontValid    = validateFont(argv.font,     'Font');
   const namefontValid = validateFont(argv.namefont, 'Namefont');
 
   // Override with Arial if invalid
-  argv.font = fontValid ? argv.font : 'Arial';
+  argv.font     = fontValid    ? argv.font     : 'Arial';
   argv.namefont = namefontValid ? argv.namefont : 'Arial';
 
   if (errors.length > 0) {
@@ -115,64 +124,66 @@ const argv = yargs
 .help()
 .argv;
 
-const port = argv.port || 3005;
-const channel = argv.username;
+
+const port          = argv.port;
+const channel       = argv.username;
 const viewportHeight = argv.height;
 const messageSeconds = argv.seconds;
-const messageFont = argv.font;
-const namefont = argv.namefont;
+const messageFont   = argv.font;
+const namefont      = argv.namefont;
+
 console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}, messageFont=${messageFont}, namefont=${namefont}`);
 
-// Serve static files
+
+// UI files (bundled inside the binary)
 app.use(express.static(publicDir));
 
-// Debug route for styles.css
+
 app.get('/styles.css', (req, res) => {
   console.log('Requested styles.css');
   res.sendFile(path.join(publicDir, 'styles.css'));
 });
 
-// Serve fonts
+
 app.get('/fonts/:font', (req, res) => {
   let fontName = req.params.font;
   console.log(`Requested font: ${fontName}`);
 
-  // Strip extension if present
-  const fontExt = path.extname(fontName).toLowerCase();
-  if (['.ttf', '.otf', '.woff', '.woff2'].includes(fontExt)) {
-    fontName = path.basename(fontName, fontExt);
+  // Strip any extension the client may have added
+  const ext = path.extname(fontName).toLowerCase();
+  if (['.ttf', '.otf', '.woff', '.woff2'].includes(ext)) {
+    fontName = path.basename(fontName, ext);
     console.log(`Stripped extension, font name: ${fontName}`);
   }
 
   const extensions = ['.ttf', '.otf', '.woff', '.woff2'];
   let fontPath = null;
 
-  // Try each extension, case-insensitive
-  for (const ext of extensions) {
-    const possiblePath = path.join(fontsDir, fontName + ext);
-    console.log(`Checking font path: ${possiblePath}`);
-    if (fs.existsSync(possiblePath)) {
-      fontPath = possiblePath;
+  // Try each extension, case‑insensitively
+  for (const e of extensions) {
+    const candidate = path.join(fontsDir, fontName + e);
+    if (fs.existsSync(candidate)) {
+      fontPath = candidate;
       break;
     }
-    // Check case-insensitive match
+    // Case‑insensitive fallback
     const files = fs.existsSync(fontsDir) ? fs.readdirSync(fontsDir) : [];
-    const matchingFile = files.find(f => f.toLowerCase() === (fontName + ext).toLowerCase());
-    if (matchingFile) {
-      fontPath = path.join(fontsDir, matchingFile);
+    const match = files.find(f => f.toLowerCase() === (fontName + e).toLowerCase());
+    if (match) {
+      fontPath = path.join(fontsDir, match);
       break;
     }
   }
 
   if (fontPath) {
-    const ext = path.extname(fontPath).toLowerCase();
-    const mimeTypes = {
-      '.ttf': 'font/ttf',
-      '.otf': 'font/otf',
+    const mimeMap = {
+      '.ttf':  'font/ttf',
+      '.otf':  'font/otf',
       '.woff': 'font/woff',
-      '.woff2': 'font/woff2'
+      '.woff2':'font/woff2'
     };
-    res.set('Content-Type', mimeTypes[ext]);
+    const mime = mimeMap[path.extname(fontPath).toLowerCase()] || 'application/octet-stream';
+    res.set('Content-Type', mime);
     console.log(`Serving font: ${fontPath}`);
     fs.createReadStream(fontPath).pipe(res);
   } else {
@@ -181,25 +192,24 @@ app.get('/fonts/:font', (req, res) => {
   }
 });
 
-// Serve overlay
+
 app.get('/', (req, res) => {
   const indexPath = path.join(publicDir, 'index.html');
   console.log(`Serving overlay: ${indexPath}`);
   res.sendFile(indexPath);
 });
 
-// Twitch chat client
+
 const client = new tmi.Client({
   connection: { secure: true, reconnect: true },
   channels: [channel]
 });
 
-// Connect to Twitch
 client.connect().catch(console.error);
 
-// Handle chat messages
-client.on('message', (channel, tags, message, self) => {
+client.on('message', (chan, tags, message, self) => {
   const emotes = [];
+
   if (tags.emotes) {
     for (const emoteId in tags.emotes) {
       tags.emotes[emoteId].forEach(position => {
@@ -208,15 +218,16 @@ client.on('message', (channel, tags, message, self) => {
       });
     }
   }
+
   io.emit('chatMessage', {
     username: tags['display-name'] || 'Anonymous',
-    message: message,
+    message,
     color: tags.color || '#ffffff',
-    emotes: emotes
+    emotes
   });
 });
 
-// Socket.IO connection
+
 io.on('connection', (socket) => {
   console.log('Socket.IO client connected:', socket.id);
   socket.emit('settings', {
@@ -227,7 +238,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start server
+
 server.listen(port, () => {
   console.log(`Chat overlay at http://localhost:${port}`);
 });
