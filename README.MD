@@ -14,8 +14,6 @@ A lightweight Node.js application to display Twitch chat messages as an overlay 
 - **OBS Integration**: Designed for OBS or similar softwares Browser Source, with smooth animations and overflow handling.
 
 ## Prerequisites
-- **Node.js**: Version 18 or higher (download from [nodejs.org](https://nodejs.org) or in your distro's repositories where applicable).
-- **npm**: Comes with Node.js.
 - **OBS Studio or similar**: For displaying the overlay, though you can load this easily in a web browser as well.
 - **Twitch Account**: A valid Twitch channel name for chat connection.
 - **Fonts**: Place `.otf`, `.ttf`, `.woff`, or `.woff2` font files in a `fonts/` folder in the project directory (optional, defaults to Arial).
