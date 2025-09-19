@@ -10,9 +10,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Use the directory of the executable for fonts/ and public/
+// Use the directory of the executable for fonts/
+const publicDir = path.join(__dirname, 'public');
 const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
-console.log(`Fonts directory set to: ${fontsDir}`);
 
 // Set Content-Security-Policy to allow inline scripts/styles and local resources
 app.use((req, res, next) => {
