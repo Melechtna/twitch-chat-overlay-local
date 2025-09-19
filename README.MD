@@ -24,11 +24,11 @@ A lightweight Node.js application to display Twitch chat messages as an overlay 
 1. **Download executable**
 
 2. **Set Up Fonts** (Optional):
-   - Create a `fonts/` folder in the project directory:
+   - Create a `fonts/` folder next to the executable:
      ```bash
      mkdir fonts
      ```
-   - Add font files (e.g., `Font.otf`) to `~/twitch-chat-overlay-local/fonts/`.
+   - Add font files (e.g., `Font.otf`) to the fonts folder.
    - Fonts must match the names used with `-f` and `-n` flags (case-insensitive).
 
 ## Usage
