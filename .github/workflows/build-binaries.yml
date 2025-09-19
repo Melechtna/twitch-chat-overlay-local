@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -29,7 +29,7 @@ jobs:
 
       - name: Build binary
         env:
-          PKG_TARGET: ${{ matrix.os == 'windows-latest' && 'node24-win-x64' || (matrix.os == 'macos-latest' && 'node24-macos-x64') || 'node24-linux-x64' }}
+          PKG_TARGET: ${{ matrix.os == 'windows-latest' && 'node20-win-x64' || (matrix.os == 'macos-latest' && 'node20-macos-x64') || 'node20-linux-x64' }}
         run: |
           # Determine the output filename (add .exe on Windows)
           OUT_NAME="twitch-chat-overlay-local${{ matrix.os == 'windows-latest' && '.exe' || '' }}"
