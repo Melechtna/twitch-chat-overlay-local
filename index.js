@@ -67,24 +67,31 @@ const argv = yargs
     errors.push('Seconds must be a positive number');
   }
 
-  // Font validation
+  // Font validation (log warnings, don't throw)
   const validateFont = (font, type) => {
-    if (font === 'Arial') return; // Skip validation for system font
+    if (font === 'Arial') return true;
     console.log(`Checking fonts directory: ${fontsDir}`);
     if (fs.existsSync(fontsDir)) {
       const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
       const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)));
       console.log(`Available fonts in fonts/: ${fontNames.join(', ')}`);
       if (!fontNames.some(name => name.toLowerCase() === font.toLowerCase())) {
-        errors.push(`${type} "${font}" not found in fonts/ folder. Available fonts: ${fontNames.join(', ')} or system Arial`);
+        console.error(`${type} "${font}" not found in fonts/ folder. Falling back to Arial. Available fonts: ${fontNames.join(', ') || 'none'}`);
+        return false;
       }
+      return true;
     } else {
-      errors.push(`${type} "${font}" not found and fonts/ directory does not exist at ${fontsDir}`);
+      console.error(`${type} "${font}" not found and fonts/ directory does not exist at ${fontsDir}. Falling back to Arial.`);
+      return false;
     }
   };
 
-  validateFont(argv.font, 'Font');
-  validateFont(argv.namefont, 'Namefont');
+  const fontValid = validateFont(argv.font, 'Font');
+  const namefontValid = validateFont(argv.namefont, 'Namefont');
+
+  // Override with Arial if invalid
+  argv.font = fontValid ? argv.font : 'Arial';
+  argv.namefont = namefontValid ? argv.namefont : 'Arial';
 
   if (errors.length > 0) {
     throw new Error(errors.join('\n'));
@@ -113,8 +120,16 @@ app.get('/styles.css', (req, res) => {
 
 // Serve fonts
 app.get('/fonts/:font', (req, res) => {
-  const fontName = req.params.font;
+  let fontName = req.params.font;
   console.log(`Requested font: ${fontName}`);
+
+  // Strip extension if present
+  const fontExt = path.extname(fontName).toLowerCase();
+  if (['.ttf', '.otf', '.woff', '.woff2'].includes(fontExt)) {
+    fontName = path.basename(fontName, fontExt);
+    console.log(`Stripped extension, font name: ${fontName}`);
+  }
+
   const extensions = ['.ttf', '.otf', '.woff', '.woff2'];
   let fontPath = null;
 
