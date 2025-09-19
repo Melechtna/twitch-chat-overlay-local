@@ -10,6 +10,10 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// Use the directory of the executable for fonts/
+const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
+console.log(`Fonts directory set to: ${fontsDir}`);
+
 // Parse command-line arguments
 const argv = yargs
 .option('port', {
@@ -66,7 +70,6 @@ const argv = yargs
   // Font validation
   const validateFont = (font, type) => {
     if (font === 'Arial') return; // Skip validation for system font
-    const fontsDir = path.join(__dirname, 'fonts');
     console.log(`Checking fonts directory: ${fontsDir}`);
     if (fs.existsSync(fontsDir)) {
       const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
@@ -100,19 +103,18 @@ const namefont = argv.namefont;
 console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}, messageFont=${messageFont}, namefont=${namefont}`);
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(path.dirname(process.execPath), 'public')));
 
 // Debug route for styles.css
 app.get('/styles.css', (req, res) => {
   console.log('Requested styles.css');
-  res.sendFile(path.join(__dirname, 'public', 'styles.css'));
+  res.sendFile(path.join(path.dirname(process.execPath), 'public', 'styles.css'));
 });
 
 // Serve fonts
 app.get('/fonts/:font', (req, res) => {
   const fontName = req.params.font;
   console.log(`Requested font: ${fontName}`);
-  const fontsDir = path.join(__dirname, 'fonts');
   const extensions = ['.ttf', '.otf', '.woff', '.woff2'];
   let fontPath = null;
 
@@ -152,7 +154,7 @@ app.get('/fonts/:font', (req, res) => {
 
 // Serve overlay
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(path.dirname(process.execPath), 'public', 'index.html'));
 });
 
 // Twitch chat client
