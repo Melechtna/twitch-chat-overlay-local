@@ -10,9 +10,17 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Use the directory of the executable for fonts/
+// Use the directory of the executable for fonts/ and public/
 const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
+const publicDir = path.join(path.dirname(process.execPath), 'public');
 console.log(`Fonts directory set to: ${fontsDir}`);
+console.log(`Public directory set to: ${publicDir}`);
+
+// Set Content-Security-Policy to allow inline scripts/styles and local resources
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'self' ws:");
+  next();
+});
 
 // Parse command-line arguments
 const argv = yargs
@@ -110,12 +118,12 @@ const namefont = argv.namefont;
 console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}, messageFont=${messageFont}, namefont=${namefont}`);
 
 // Serve static files
-app.use(express.static(path.join(path.dirname(process.execPath), 'public')));
+app.use(express.static(publicDir));
 
 // Debug route for styles.css
 app.get('/styles.css', (req, res) => {
   console.log('Requested styles.css');
-  res.sendFile(path.join(path.dirname(process.execPath), 'public', 'styles.css'));
+  res.sendFile(path.join(publicDir, 'styles.css'));
 });
 
 // Serve fonts
@@ -169,7 +177,9 @@ app.get('/fonts/:font', (req, res) => {
 
 // Serve overlay
 app.get('/', (req, res) => {
-  res.sendFile(path.join(path.dirname(process.execPath), 'public', 'index.html'));
+  const indexPath = path.join(publicDir, 'index.html');
+  console.log(`Serving overlay: ${indexPath}`);
+  res.sendFile(indexPath);
 });
 
 // Twitch chat client
