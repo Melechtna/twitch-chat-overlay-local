@@ -16,7 +16,15 @@ const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
 
 // Set Content-Security-Policy to allow inline scripts/styles and local resources
 app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'self' ws:");
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
+    "img-src 'self' https://static-cdn.jtvnw.net https://cdn.jtvnw.net",
+    "connect-src 'self' ws:"
+  ].join('; ');
+  res.setHeader('Content‑Security‑Policy', csp);
   next();
 });
 
