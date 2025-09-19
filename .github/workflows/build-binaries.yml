@@ -1,7 +1,6 @@
-
 on:
   push:
-    branches: [ main ]          # adjust if you use a different default branch
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -13,40 +12,29 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      # 1️⃣ Checkout the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Node.js (choose the version you need)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'          # <-- change if you use a different version
+          node-version: '24'
           cache: 'npm'
 
-      # 3️⃣ Install npm dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Install pkg (or replace with your own bundler)
       - name: Install pkg
         run: npm install -g pkg
 
-      # 5️⃣ Build the binary
-      #
-      #   • On Linux/macOS we can target all three platforms in one command.
-      #   • On Windows we need a separate run because the host OS must match the target.
-      #
       - name: Build binary
         env:
-          # Force pkg to produce the correct target for the current runner
-          PKG_TARGET: ${{ matrix.os == 'windows-latest' && 'node20-win-x64' || (matrix.os == 'macos-latest' && 'node20-macos-x64') || 'node20-linux-x64' }}
+          PKG_TARGET: ${{ matrix.os == 'windows-latest' && 'node24-win-x64' || (matrix.os == 'macos-latest' && 'node24-macos-x64') || 'node24-linux-x64' }}
         run: |
           # Determine the output filename (add .exe on Windows)
           OUT_NAME="twitch-chat-overlay-local${{ matrix.os == 'windows-latest' && '.exe' || '' }}"
           pkg . --targets $PKG_TARGET --output $OUT_NAME
 
-      # 6️⃣ Upload the built binary as an artifact
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
