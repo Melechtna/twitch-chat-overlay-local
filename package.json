@@ -17,6 +17,10 @@
     "yargs": "^17.7.2"
   },
   "pkg": {
-    "assets": ["public/**/*"]
+    "assets": [
+      "public/**/*",
+      "fonts/**/*",
+      "node_modules/socket.io/client-dist/socket.io.js"
+    ]
   }
 }
