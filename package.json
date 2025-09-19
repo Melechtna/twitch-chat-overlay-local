@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Locally hosted Twitch chat overlay for streamers",
   "main": "index.js",
+  "bin": {
+    "twitch-chat-overlay-local": "./index.js"
+  },
   "scripts": {
     "start": "node index.js"
   },
