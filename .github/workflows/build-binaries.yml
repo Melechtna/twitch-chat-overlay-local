@@ -30,10 +30,9 @@ jobs:
       - name: Build binary
         env:
           PKG_TARGET: ${{ matrix.os == 'windows-latest' && 'node18-win-x64' || (matrix.os == 'macos-latest' && 'node18-macos-x64') || 'node18-linux-x64' }}
-        run: |
-          # Determine the output filename (add .exe on Windows)
-          OUT_NAME="twitch-chat-overlay-local${{ matrix.os == 'windows-latest' && '.exe' || '' }}"
-          pkg . --targets $PKG_TARGET --output $OUT_NAME
+          OUT_NAME: twitch-chat-overlay-local${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        run: pkg . --targets $PKG_TARGET --output $OUT_NAME
+        shell: bash
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
