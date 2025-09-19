@@ -21,18 +21,9 @@ A lightweight Node.js application to display Twitch chat messages as an overlay 
 - **Fonts**: Place `.otf`, `.ttf`, `.woff`, or `.woff2` font files in a `fonts/` folder in the project directory (optional, defaults to Arial).
 
 ## Installation
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/your-username/twitch-chat-overlay.git
-   cd twitch-chat-overlay-local
-   ```
+1. **Download executable**
 
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Set Up Fonts** (Optional):
+2. **Set Up Fonts** (Optional):
    - Create a `fonts/` folder in the project directory:
      ```bash
      mkdir fonts
@@ -40,24 +31,12 @@ A lightweight Node.js application to display Twitch chat messages as an overlay 
    - Add font files (e.g., `Font.otf`) to `~/twitch-chat-overlay-local/fonts/`.
    - Fonts must match the names used with `-f` and `-n` flags (case-insensitive).
 
-4. **Verify Project Structure**:
-   ```
-   twitch-chat-overlay/
-   ├── index.js
-   ├── package.json
-   ├── public/
-   │   ├── index.html
-   │   ├── styles.css
-   ├── fonts/
-   │   ├── Font.otf (or your custom fonts)
-   ```
-
 ## Usage
-Run the overlay with `node index.js` and specify options via command-line flags.
+Run the overlay with the relavent executable and specify options via command-line flags.
 
 ### Command
 ```bash
-node index.js -u <twitch-username> -v <height> -p <port> -f <message-font> -n <username-font> -s <seconds>
+twitch-chat-overlay-local(.exe) -u <twitch-username> -v <height> -p <port> -f <message-font> -n <username-font> -s <seconds>
 ```
 
 ### Flags
@@ -74,7 +53,7 @@ node index.js -u <twitch-username> -v <height> -p <port> -f <message-font> -n <u
 ### Example
 Run the overlay for `melechtna_antelecht` with a 400px height, 30-second message duration, and `Font` font for both messages and usernames on port 3006:
 ```bash
-node index.js -u melechtna_antelecht -v 400 -p 3006 -f Font -n Font2 -s 30
+twitch-chat-overloat-local -u melechtna_antelecht -v 400 -p 3006 -f Font -n Font2 -s 30
 ```
 
 Example output:
