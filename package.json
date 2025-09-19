@@ -19,7 +19,6 @@
   "pkg": {
     "assets": [
       "public/**/*",
-      "fonts/**/*",
       "node_modules/socket.io/client-dist/socket.io.js"
     ]
   }
