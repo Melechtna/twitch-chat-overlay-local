@@ -95,7 +95,7 @@ const namefont = argv.namefont;
 console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}, messageFont=${messageFont}, namefont=${namefont}`);
 
 // Serve static files
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve fonts folder with correct MIME types
 const fontsDir = path.join(__dirname, 'fonts');
