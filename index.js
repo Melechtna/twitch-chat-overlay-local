@@ -12,79 +12,84 @@ const io = socketIo(server);
 
 // Parse command-line arguments
 const argv = yargs
-  .option('port', {
-    alias: 'p',
-    type: 'number',
-    description: 'Port to run the server on',
-    default: 3005
-  })
-  .option('username', {
-    alias: 'u',
-    type: 'string',
-    description: 'Twitch channel username',
-    demandOption: true
-  })
-  .option('height', {
-    alias: 'v',
-    type: 'number',
-    description: 'Viewport height in pixels, set to your intended OBS overlay size in height',
-    demandOption: true
-  })
-  .option('seconds', {
-    alias: 's',
-    type: 'number',
-    description: 'Seconds each message stays visible',
-    default: 10
-  })
-  .option('font', {
-    alias: 'f',
-    type: 'string',
-    description: 'Font for message text',
-    default: 'Arial'
-  })
-  .option('namefont', {
-    alias: 'n',
-    type: 'string',
-    description: 'Font for usernames',
-    default: 'Arial'
-  })
-  .check((argv) => {
-    const errors = [];
-    if (argv.port < 1 || argv.port > 65535) {
-      errors.push('Port must be between 1 and 65535');
-    }
-    if (!argv.username || !/^[a-zA-Z0-9_]{3,25}$/.test(argv.username)) {
-      errors.push('Username must be a valid Twitch channel name (3-25 alphanumeric characters or underscores)');
-    }
-    if (argv.height < 100 || argv.height > 2160) {
-      errors.push('Height must be between 100 and 2160 pixels');
-    }
-    if (argv.seconds <= 0) {
-      errors.push('Seconds must be a positive number');
-    }
-    // Font validation
+.option('port', {
+  alias: 'p',
+  type: 'number',
+  description: 'Port to run the server on',
+  default: 3005
+})
+.option('username', {
+  alias: 'u',
+  type: 'string',
+  description: 'Twitch channel username',
+  demandOption: true
+})
+.option('height', {
+  alias: 'v',
+  type: 'number',
+  description: 'Viewport height in pixels, set to your intended OBS overlay size in height',
+  demandOption: true
+})
+.option('seconds', {
+  alias: 's',
+  type: 'number',
+  description: 'Seconds each message stays visible',
+  default: 30
+})
+.option('font', {
+  alias: 'f',
+  type: 'string',
+  description: 'Font for message text (name in fonts/ folder)',
+  default: 'Arial'
+})
+.option('namefont', {
+  alias: 'n',
+  type: 'string',
+  description: 'Font for usernames (name in fonts/ folder)',
+  default: 'Arial'
+})
+.check((argv) => {
+  const errors = [];
+  if (argv.port < 1 || argv.port > 65535) {
+    errors.push('Port must be between 1 and 65535');
+  }
+  if (!argv.username || !/^[a-zA-Z0-9_]{3,25}$/.test(argv.username)) {
+    errors.push('Username must be a valid Twitch channel name (3-25 alphanumeric characters or underscores)');
+  }
+  if (argv.height < 100 || argv.height > 2160) {
+    errors.push('Height must be between 100 and 2160 pixels');
+  }
+  if (argv.seconds <= 0) {
+    errors.push('Seconds must be a positive number');
+  }
+
+  // Font validation
+  const validateFont = (font, type) => {
+    if (font === 'Arial') return; // Skip validation for system font
     const fontsDir = path.join(__dirname, 'fonts');
+    console.log(`Checking fonts directory: ${fontsDir}`);
     if (fs.existsSync(fontsDir)) {
       const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
-      const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)).toLowerCase());
-      console.log(`Available fonts: ${fontNames.join(', ')}`);
-      const font = typeof argv.font === 'string' ? argv.font.toLowerCase() : 'arial';
-      const namefont = typeof argv.namefont === 'string' ? argv.namefont.toLowerCase() : 'arial';
-      console.log(`Validating font: ${font}, namefont: ${namefont}`);
-      if (!fontNames.includes(font) && font !== 'arial') {
-        errors.push(`Font "${argv.font}" not found in fonts/ folder. Available fonts: ${fontNames.join(', ')} or system fonts`);
+      const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)));
+      console.log(`Available fonts in fonts/: ${fontNames.join(', ')}`);
+      if (!fontNames.some(name => name.toLowerCase() === font.toLowerCase())) {
+        errors.push(`${type} "${font}" not found in fonts/ folder. Available fonts: ${fontNames.join(', ')} or system Arial`);
       }
-      if (!fontNames.includes(namefont) && namefont !== 'arial') {
-        errors.push(`Font "${argv.namefont}" not found in fonts/ folder. Available fonts: ${fontNames.join(', ')} or system fonts`);
-      }
+    } else {
+      errors.push(`${type} "${font}" not found and fonts/ directory does not exist at ${fontsDir}`);
     }
-    if (errors.length > 0) {
-      throw new Error(errors.join('\n'));
-    }
-    return true;
-  })
-  .help()
-  .argv;
+  };
+
+  validateFont(argv.font, 'Font');
+  validateFont(argv.namefont, 'Namefont');
+
+  if (errors.length > 0) {
+    throw new Error(errors.join('\n'));
+  }
+  return true;
+})
+.help()
+.argv;
 
 const port = argv.port || 3005;
 const channel = argv.username;
@@ -97,11 +102,38 @@ console.log(`Server settings: port=${port}, channel=${channel}, height=${viewpor
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve fonts folder with correct MIME types
-const fontsDir = path.join(__dirname, 'fonts');
-if (fs.existsSync(fontsDir)) {
-  app.get('/fonts/:font', (req, res) => {
-    const fontPath = path.join(fontsDir, req.params.font);
+// Debug route for styles.css
+app.get('/styles.css', (req, res) => {
+  console.log('Requested styles.css');
+  res.sendFile(path.join(__dirname, 'public', 'styles.css'));
+});
+
+// Serve fonts
+app.get('/fonts/:font', (req, res) => {
+  const fontName = req.params.font;
+  console.log(`Requested font: ${fontName}`);
+  const fontsDir = path.join(__dirname, 'fonts');
+  const extensions = ['.ttf', '.otf', '.woff', '.woff2'];
+  let fontPath = null;
+
+  // Try each extension, case-insensitive
+  for (const ext of extensions) {
+    const possiblePath = path.join(fontsDir, fontName + ext);
+    console.log(`Checking font path: ${possiblePath}`);
+    if (fs.existsSync(possiblePath)) {
+      fontPath = possiblePath;
+      break;
+    }
+    // Check case-insensitive match
+    const files = fs.existsSync(fontsDir) ? fs.readdirSync(fontsDir) : [];
+    const matchingFile = files.find(f => f.toLowerCase() === (fontName + ext).toLowerCase());
+    if (matchingFile) {
+      fontPath = path.join(fontsDir, matchingFile);
+      break;
+    }
+  }
+
+  if (fontPath) {
     const ext = path.extname(fontPath).toLowerCase();
     const mimeTypes = {
       '.ttf': 'font/ttf',
@@ -109,14 +141,19 @@ if (fs.existsSync(fontsDir)) {
       '.woff': 'font/woff',
       '.woff2': 'font/woff2'
     };
-    if (fs.existsSync(fontPath) && mimeTypes[ext]) {
-      res.set('Content-Type', mimeTypes[ext]);
-      fs.createReadStream(fontPath).pipe(res);
-    } else {
-      res.status(404).send('Font not found');
-    }
-  });
-}
+    res.set('Content-Type', mimeTypes[ext]);
+    console.log(`Serving font: ${fontPath}`);
+    fs.createReadStream(fontPath).pipe(res);
+  } else {
+    console.error(`Font not found: ${fontName} in ${fontsDir}`);
+    res.status(404).send('Font not found');
+  }
+});
+
+// Serve overlay
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Twitch chat client
 const client = new tmi.Client({
@@ -146,13 +183,9 @@ client.on('message', (channel, tags, message, self) => {
   });
 });
 
-// Serve overlay
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
-
-// Emit settings to client
+// Socket.IO connection
 io.on('connection', (socket) => {
+  console.log('Socket.IO client connected:', socket.id);
   socket.emit('settings', {
     viewportHeight,
     messageSeconds,
