@@ -12,9 +12,7 @@ const io = socketIo(server);
 
 // Use the directory of the executable for fonts/ and public/
 const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
-const publicDir = path.join(path.dirname(process.execPath), 'public');
 console.log(`Fonts directory set to: ${fontsDir}`);
-console.log(`Public directory set to: ${publicDir}`);
 
 // Set Content-Security-Policy to allow inline scripts/styles and local resources
 app.use((req, res, next) => {
