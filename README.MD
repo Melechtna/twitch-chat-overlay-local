@@ -75,7 +75,7 @@ Chat overlay at http://localhost:3006
 4. Messages should appear in squircle boxes with custom fonts.
 
 ## Contributing
-Contributions are welcome! The project runs with `node index.js`, but compiling to a standalone binary (e.g., using `pkg`) is untested and may have issues with asset serving (e.g., `styles.css` not loading). If you’d like to tackle binary compilation, please submit a pull request with instructions.
+Contributions are welcome! However at this point, unless Twitch changes something, I'm pretty sure it should just work.
 
 ## License
 MIT License. Fonts in `fonts/` are not included—users must provide their own to avoid licensing issues.
