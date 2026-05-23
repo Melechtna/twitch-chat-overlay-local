@@ -3,9 +3,9 @@ const http      = require('http');
 const socketIo  = require('socket.io');
 const tmi       = require('tmi.js');
 const yargs     = require('yargs');
-const getSystemFonts = require('get-system-fonts');
 const path      = require('path');
 const fs        = require('fs');
+const readline  = require('readline');
 
 const app    = express();
 const server = http.createServer(app);
@@ -15,7 +15,10 @@ const io     = socketIo(server);
 // UI (HTML/CSS/JS) is bundled inside the binary → use __dirname
 const publicDir = path.join(__dirname, 'public');
 
-const fontsDir = path.join(path.dirname(process.execPath), 'fonts');
+const overrideDir = path.join(
+  process.pkg ? path.dirname(process.execPath) : __dirname,
+  'override'
+);
 
 app.use((req, res, next) => {
   const csp = [
@@ -41,8 +44,7 @@ const argv = yargs
 .option('username', {
   alias: 'u',
   type: 'string',
-  description: 'Twitch channel username',
-  demandOption: true
+  description: 'Twitch channel username (not required in debug mode)'
 })
 .option('height', {
   alias: 'v',
@@ -56,17 +58,11 @@ const argv = yargs
   description: 'Seconds each message stays visible',
   default: 30
 })
-.option('font', {
-  alias: 'f',
-  type: 'string',
-  description: 'Font for message text (name in fonts/ folder)',
-  default: 'Arial'
-})
-.option('namefont', {
-  alias: 'n',
-  type: 'string',
-  description: 'Font for usernames (name in fonts/ folder)',
-  default: 'Arial'
+.option('debug', {
+  alias: 'd',
+  type: 'boolean',
+  description: 'Debug mode: inject test messages via CLI instead of connecting to Twitch',
+  default: false
 })
 .check((argv) => {
   const errors = [];
@@ -74,7 +70,7 @@ const argv = yargs
   if (argv.port < 1 || argv.port > 65535) {
     errors.push('Port must be between 1 and 65535');
   }
-  if (!argv.username || !/^[a-zA-Z0-9_]{3,25}$/.test(argv.username)) {
+  if (!argv.debug && (!argv.username || !/^[a-zA-Z0-9_]{3,25}$/.test(argv.username))) {
     errors.push('Username must be a valid Twitch channel name (3-25 alphanumeric characters or underscores)');
   }
   if (argv.height < 100 || argv.height > 2160) {
@@ -83,38 +79,6 @@ const argv = yargs
   if (argv.seconds <= 0) {
     errors.push('Seconds must be a positive number');
   }
-
-
-  const validateFont = (font, type) => {
-    if (font.toLowerCase() === 'arial') return true;
-
-    console.log(`Checking fonts directory: ${fontsDir}`);
-
-    if (!fs.existsSync(fontsDir)) {
-      console.error(`${type} "${font}" not found – fonts/ folder does not exist at ${fontsDir}. Falling back to Arial.`);
-      return false;
-    }
-
-    const fontFiles = fs.readdirSync(fontsDir).filter(f => /\.(ttf|otf|woff|woff2)$/i.test(f));
-    const fontNames = fontFiles.map(f => path.basename(f, path.extname(f)));
-
-    console.log(`Available fonts in fonts/: ${fontNames.join(', ')}`);
-
-    const found = fontNames.some(name => name.toLowerCase() === font.toLowerCase());
-
-    if (!found) {
-      console.error(`${type} "${font}" not found in fonts/ folder. Falling back to Arial. Available fonts: ${fontNames.join(', ') || 'none'}`);
-      return false;
-    }
-    return true;
-  };
-
-  const fontValid    = validateFont(argv.font,     'Font');
-  const namefontValid = validateFont(argv.namefont, 'Namefont');
-
-  // Override with Arial if invalid
-  argv.font     = fontValid    ? argv.font     : 'Arial';
-  argv.namefont = namefontValid ? argv.namefont : 'Arial';
 
   if (errors.length > 0) {
     throw new Error(errors.join('\n'));
@@ -129,116 +93,156 @@ const port          = argv.port;
 const channel       = argv.username;
 const viewportHeight = argv.height;
 const messageSeconds = argv.seconds;
-const messageFont   = argv.font;
-const namefont      = argv.namefont;
+console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}`);
 
-console.log(`Server settings: port=${port}, channel=${channel}, height=${viewportHeight}, seconds=${messageSeconds}, messageFont=${messageFont}, namefont=${namefont}`);
+if (fs.existsSync(overrideDir)) {
+  console.log(`Override directory detected: ${overrideDir}`);
+}
 
+
+const noCache = (res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+};
+
+app.get('/styles.css', (req, res) => {
+  noCache(res);
+  const overridePath = path.join(overrideDir, 'style.css');
+  if (fs.existsSync(overridePath)) {
+    if (!argv.debug) console.log('Requested styles.css (override)');
+    return res.sendFile(overridePath);
+  }
+  if (!argv.debug) console.log('Requested styles.css (default)');
+  res.sendFile(path.join(publicDir, 'styles.css'));
+});
+
+
+app.get('/', (req, res) => {
+  noCache(res);
+  const overridePath = path.join(overrideDir, 'index.html');
+  if (fs.existsSync(overridePath)) {
+    if (!argv.debug) console.log(`Serving overlay (override): ${overridePath}`);
+    return res.sendFile(overridePath);
+  }
+  const indexPath = path.join(publicDir, 'index.html');
+  if (!argv.debug) console.log(`Serving overlay (default): ${indexPath}`);
+  res.sendFile(indexPath);
+});
+
+
+// Override files take priority over bundled UI
+app.use(express.static(overrideDir));
 
 // UI files (bundled inside the binary)
 app.use(express.static(publicDir));
 
 
-app.get('/styles.css', (req, res) => {
-  console.log('Requested styles.css');
-  res.sendFile(path.join(publicDir, 'styles.css'));
-});
-
-
-app.get('/fonts/:font', (req, res) => {
-  let fontName = req.params.font;
-  console.log(`Requested font: ${fontName}`);
-
-  // Strip any extension the client may have added
-  const ext = path.extname(fontName).toLowerCase();
-  if (['.ttf', '.otf', '.woff', '.woff2'].includes(ext)) {
-    fontName = path.basename(fontName, ext);
-    console.log(`Stripped extension, font name: ${fontName}`);
-  }
-
-  const extensions = ['.ttf', '.otf', '.woff', '.woff2'];
-  let fontPath = null;
-
-  // Try each extension, case‑insensitively
-  for (const e of extensions) {
-    const candidate = path.join(fontsDir, fontName + e);
-    if (fs.existsSync(candidate)) {
-      fontPath = candidate;
-      break;
-    }
-    // Case‑insensitive fallback
-    const files = fs.existsSync(fontsDir) ? fs.readdirSync(fontsDir) : [];
-    const match = files.find(f => f.toLowerCase() === (fontName + e).toLowerCase());
-    if (match) {
-      fontPath = path.join(fontsDir, match);
-      break;
-    }
-  }
-
-  if (fontPath) {
-    const mimeMap = {
-      '.ttf':  'font/ttf',
-      '.otf':  'font/otf',
-      '.woff': 'font/woff',
-      '.woff2':'font/woff2'
-    };
-    const mime = mimeMap[path.extname(fontPath).toLowerCase()] || 'application/octet-stream';
-    res.set('Content-Type', mime);
-    console.log(`Serving font: ${fontPath}`);
-    fs.createReadStream(fontPath).pipe(res);
-  } else {
-    console.error(`Font not found: ${fontName} in ${fontsDir}`);
-    res.status(404).send('Font not found');
-  }
-});
-
-
-app.get('/', (req, res) => {
-  const indexPath = path.join(publicDir, 'index.html');
-  console.log(`Serving overlay: ${indexPath}`);
-  res.sendFile(indexPath);
-});
-
-
-const client = new tmi.Client({
-  connection: { secure: true, reconnect: true },
-  channels: [channel]
-});
-
-client.connect().catch(console.error);
-
-client.on('message', (chan, tags, message, self) => {
-  const emotes = [];
-
-  if (tags.emotes) {
-    for (const emoteId in tags.emotes) {
-      tags.emotes[emoteId].forEach(position => {
-        const [start, end] = position.split('-').map(Number);
-        emotes.push({ id: emoteId, start, end });
-      });
-    }
-  }
-
-  io.emit('chatMessage', {
-    username: tags['display-name'] || 'Anonymous',
-    message,
-    color: tags.color || '#ffffff',
-    emotes
-  });
-});
-
-
 io.on('connection', (socket) => {
-  console.log('Socket.IO client connected:', socket.id);
+  if (!argv.debug) {
+    console.log('Socket.IO client connected:', socket.id);
+  }
   socket.emit('settings', {
     viewportHeight,
-    messageSeconds,
-    messageFont,
-    namefont
+    messageSeconds
   });
 });
+
+
+if (argv.debug) {
+  console.log('Debug mode enabled \u2014 Twitch connection skipped.');
+} else {
+  const client = new tmi.Client({
+    connection: { secure: true, reconnect: true },
+    channels: [channel]
+  });
+
+  client.connect().catch(console.error);
+
+  client.on('message', (chan, tags, message, self) => {
+    const emotes = [];
+
+    if (tags.emotes) {
+      for (const emoteId in tags.emotes) {
+        tags.emotes[emoteId].forEach(position => {
+          const [start, end] = position.split('-').map(Number);
+          emotes.push({ id: emoteId, start, end });
+        });
+      }
+    }
+
+    io.emit('chatMessage', {
+      username: tags['display-name'] || 'Anonymous',
+      message,
+      color: tags.color || '#ffffff',
+      emotes
+    });
+  });
+}
 
 
 server.listen(port, () => {
   console.log(`Chat overlay at http://localhost:${port}`);
+
+  if (fs.existsSync(overrideDir)) {
+    const watchedFiles = ['style.css', 'index.html'];
+    const mtimes = {};
+    for (const file of watchedFiles) {
+      const fp = path.join(overrideDir, file);
+      if (fs.existsSync(fp)) mtimes[file] = fs.statSync(fp).mtimeMs;
+    }
+    setInterval(() => {
+      for (const file of watchedFiles) {
+        const fp = path.join(overrideDir, file);
+        if (fs.existsSync(fp)) {
+          const mtime = fs.statSync(fp).mtimeMs;
+          if (mtimes[file] !== undefined && mtime !== mtimes[file]) {
+            if (!argv.debug) console.log(`Override file changed: ${file}`);
+            io.emit('fileChanged', { file });
+          }
+          mtimes[file] = mtime;
+        }
+      }
+    }, 2000);
+  }
+
+  if (argv.debug) {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question('Enter dummy username: ', (dummyUsername) => {
+      dummyUsername = dummyUsername || 'TestUser';
+
+      const randomColor = () => {
+        const hue = Math.floor(Math.random() * 360);
+        return `hsl(${hue}, 75%, 55%)`;
+      };
+
+      rl.setPrompt('> ');
+      rl.prompt();
+
+      rl.on('line', (line) => {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase() === '/exit' || trimmed.toLowerCase() === '/quit') {
+          rl.close();
+          return;
+        }
+
+        io.emit('chatMessage', {
+          username: dummyUsername,
+          message: trimmed,
+          color: randomColor(),
+          emotes: []
+        });
+        rl.prompt();
+      });
+
+      rl.on('close', () => {
+        console.log('\nExiting debug mode.');
+        process.exit(0);
+      });
+    });
+  }
 });

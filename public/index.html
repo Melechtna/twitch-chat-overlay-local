@@ -18,78 +18,23 @@
       const chatContainer = document.getElementById('chat-container');
       let viewportHeight = 600;
       let messageSeconds = 10;
-      let messageFont = 'Arial';
-      let namefont = 'Arial';
 
       socket.on('connect', () => {
         console.log('Connected to Socket.IO server');
       });
 
-      socket.on('settings', ({ viewportHeight: height, messageSeconds: seconds, messageFont: mFont, namefont: uFont }) => {
+      socket.on('settings', ({ viewportHeight: height, messageSeconds: seconds }) => {
         viewportHeight = height;
         messageSeconds = seconds;
-        messageFont = mFont;
-        namefont = uFont;
-        console.log(`Settings received: height=${height}px, seconds=${seconds}, messageFont=${mFont}, namefont=${uFont}`);
-
-        // Create style element for dynamic font and CSS rules
-        const style = document.createElement('style');
-        let fontStyles = '';
-
-        // Only load custom fonts if not Arial
-        if (mFont !== 'Arial') {
-          fontStyles += `
-            @font-face {
-              font-family: "${mFont}";
-              src: url("/fonts/${mFont}.ttf") format("truetype"),
-                   url("/fonts/${mFont}.otf") format("opentype"),
-                   url("/fonts/${mFont}.woff") format("woff"),
-                   url("/fonts/${mFont}.woff2") format("woff2");
-            }
-          `;
-          console.log(`Applied custom message font styles: ${mFont}`);
-          // Test custom message font loading
-          const testFont = new FontFace(mFont, `url(/fonts/${mFont}.ttf)`);
-          testFont.load().then(() => {
-            console.log(`Message font "${mFont}" loaded successfully`);
-          }).catch(err => {
-            console.error(`Failed to load message font "${mFont}": ${err.message}`);
-          });
-        } else {
-          console.log('Using system default font for messages: Arial');
-        }
-
-        if (uFont !== 'Arial') {
-          fontStyles += `
-            @font-face {
-              font-family: "${uFont}";
-              src: url("/fonts/${uFont}.ttf") format("truetype"),
-                   url("/fonts/${uFont}.otf") format("opentype"),
-                   url("/fonts/${uFont}.woff") format("woff"),
-                   url("/fonts/${uFont}.woff2") format("woff2");
-            }
-          `;
-          console.log(`Applied custom username font styles: ${uFont}`);
-          // Test custom username font loading
-          const testUsernameFont = new FontFace(uFont, `url(/fonts/${uFont}.ttf)`);
-          testUsernameFont.load().then(() => {
-            console.log(`Username font "${uFont}" loaded successfully`);
-          }).catch(err => {
-            console.error(`Failed to load username font "${uFont}": ${err.message}`);
-          });
-        } else {
-          console.log('Using system default font for usernames: Arial');
-        }
-
-        // Apply CSS rules with fallbacks
-        fontStyles += `
-          .chat-message { font-family: "${mFont}", Arial, sans-serif !important; }
-          .username { font-family: "${uFont}", Arial, sans-serif !important; }
-        `;
-        style.textContent = fontStyles;
-        document.head.appendChild(style);
-
+        console.log(`Settings received: height=${height}px, seconds=${seconds}`);
         chatContainer.style.height = `${height}px`;
+      });
+
+      socket.on('fileChanged', ({ file }) => {
+        if (file === 'style.css') {
+          const link = document.querySelector('link[rel="stylesheet"]');
+          if (link) link.href = `/styles.css?t=${Date.now()}`;
+        }
       });
 
       socket.on('chatMessage', ({ username, message, color, emotes }) => {
