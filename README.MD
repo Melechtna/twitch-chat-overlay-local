@@ -34,7 +34,7 @@ Run the overlay with the relavent executable and specify options via command-lin
 
 ### Command
 ```bash
-twitch-chat-overlay-local(.exe) -u <twitch-username> -v <height> -p <port> -f <message-font> -n <username-font> -s <seconds>
+twitch-chat-overlay-local(.exe) -u <twitch-username> -v <height> -p <port> -s <seconds> -d
 ```
 
 ### Flags
