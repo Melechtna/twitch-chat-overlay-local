@@ -9,6 +9,15 @@
   <div id="chat-container"></div>
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    function escapeHTML(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       if (typeof io === 'undefined') {
         console.error('Socket.IO client script failed to load');
@@ -40,16 +49,19 @@
       socket.on('chatMessage', ({ username, message, color, emotes }) => {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'chat-message';
-        let formattedMessage = message;
 
         emotes.sort((a, b) => b.start - a.start);
+
+        const messageSlices = [];
+        let charIndex = 0;
         for (const emote of emotes) {
-          const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/3.0`;
-          const emoteText = message.slice(emote.start, emote.end + 1);
-          formattedMessage = formattedMessage.slice(0, emote.start) +
-            `<img src="${emoteUrl}" class="emote" alt="${emoteText}">` +
-            formattedMessage.slice(emote.end + 1);
+          const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(emote.id)}/default/dark/3.0`;
+          messageSlices.push(escapeHTML(message.slice(charIndex, emote.start)));
+          messageSlices.push(`<img src="${emoteUrl}" class="emote">`);
+          charIndex = emote.end + 1;
         }
+        messageSlices.push(escapeHTML(message.slice(charIndex, message.length)));
+        const formattedMessage = messageSlices.join("");
 
         msgDiv.innerHTML = `<span class="username" style="color:${color}">${username}</span>: ${formattedMessage}`;
         console.log(`New message created: ${username}: ${message}`);
